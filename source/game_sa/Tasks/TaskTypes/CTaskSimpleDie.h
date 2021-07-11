@@ -33,6 +33,12 @@ private:
 
 public:
     ~CTaskSimpleDie() override;
+    eTaskType GetId() override { return TASK_SIMPLE_DIE; }
+    CTask* Clone() override;
+    bool MakeAbortable(CPed* ped, eAbortPriority priority, CEvent* _event) override;
+
+    CTask* Clone_Reversed();
+    bool MakeAbortable_Reversed(CPed* ped, eAbortPriority priority, CEvent* _event);
 };
 
 VALIDATE_SIZE(CTaskSimpleDie, 0x28);

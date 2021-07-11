@@ -66,3 +66,45 @@ CTaskSimpleDie::~CTaskSimpleDie()
     if (m_pAnim)
         m_pAnim->SetFinishCallback(CDefaultAnimCallback::DefaultAnimCB, nullptr);
 }
+
+// 0x635DA0
+CTask* CTaskSimpleDie::Clone()
+{
+    return Clone_Reversed();
+}
+
+// 0x62FBA0
+bool CTaskSimpleDie::MakeAbortable(CPed* ped, eAbortPriority priority, CEvent* _event)
+{
+    return MakeAbortable_Reversed(ped, priority, _event);
+}
+
+CTask* CTaskSimpleDie::Clone_Reversed()
+{
+    if (m_pAnimHierarchy)
+        return new CTaskSimpleDie(m_pAnimHierarchy, m_nAnimFlags, m_fBlendDelta, m_fAnimSpeed);
+    else
+        return new CTaskSimpleDie(m_nAnimGroup, m_nAnimID, m_fBlendDelta, m_fAnimSpeed);
+}
+
+bool CTaskSimpleDie::MakeAbortable_Reversed(CPed* ped, eAbortPriority priority, CEvent* _event)
+{
+    if (priority == ABORT_PRIORITY_IMMEDIATE)
+    {
+        if (m_pAnim)
+            m_pAnim->m_fBlendDelta = -1000.0F;
+
+        ped->SetPedState(PEDSTATE_IDLE);
+        ped->SetMoveState(PEDMOVE_STILL);
+        ped->SetMoveAnim();
+        ped->bIsDyingStuck = false;
+        return true;
+    }
+    else if (_event && _event->GetEventType() == EVENT_DEATH)
+    {
+        ped->bIsDyingStuck = false;
+        return true;
+    }
+    else
+        return false;
+}
