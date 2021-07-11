@@ -7,7 +7,7 @@ CTaskSimpleDie::CTaskSimpleDie(eAnimGroup nAnimGroup, eAnimID nAnimID, float fBl
     m_nAnimID = nAnimID;
     m_fBlendDelta = fBlendDelta;
     m_fAnimSpeed = fAnimSpeed;
-    b1 = false;
+    bIsFinished = false;
     b2 = false;
     m_pAnimHierarchy = nullptr;
     m_nAnimFlags = 0;
@@ -21,7 +21,7 @@ CTaskSimpleDie::CTaskSimpleDie(const char* animName, const char* animBlockName, 
     m_nAnimID = ANIM_ID_KO_SHOT_FRONT_0;
     m_fBlendDelta = fBlendDelta;
     m_fAnimSpeed = fAnimSpeed;
-    b1 = false;
+    bIsFinished = false;
     b2 = false;
     m_pAnimHierarchy = CAnimManager::GetAnimation(animName, CAnimManager::GetAnimationBlock(animBlockName));
     m_nAnimFlags = nAnimFlags;
@@ -35,7 +35,7 @@ CTaskSimpleDie::CTaskSimpleDie(CAnimBlendHierarchy* pAnimHierarchy, unsigned int
     m_nAnimID = ANIM_ID_KO_SHOT_FRONT_0;
     m_fBlendDelta = fBlendDelta;
     m_fAnimSpeed = fAnimSpeed;
-    b1 = false;
+    bIsFinished = false;
     b2 = false;
     m_pAnimHierarchy = pAnimHierarchy;
     m_nAnimFlags = nAnimFlags;
@@ -77,6 +77,33 @@ CTask* CTaskSimpleDie::Clone()
 bool CTaskSimpleDie::MakeAbortable(CPed* ped, eAbortPriority priority, CEvent* _event)
 {
     return MakeAbortable_Reversed(ped, priority, _event);
+}
+
+// 0x637520
+void CTaskSimpleDie::StartAnim(CPed* ped)
+{
+    if (m_pAnimHierarchy)
+        m_pAnim = CAnimManager::BlendAnimation(ped->m_pRwClump, m_pAnimHierarchy, m_nAnimFlags, m_fBlendDelta);
+    else
+        m_pAnim = CAnimManager::BlendAnimation(ped->m_pRwClump, m_nAnimGroup, m_nAnimID, m_fBlendDelta);
+
+    m_pAnim->SetFinishCallback(FinishAnimDieCB, this);
+    m_pAnim->m_nFlags &= ~ANIM_FLAG_UNLOCK_LAST_FRAME;
+    if (m_fAnimSpeed > 0.0F)
+        m_pAnim->m_fSpeed = m_fAnimSpeed;
+
+    ped->ClearAll();
+    ped->m_fHealth = 0.0F;
+    ped->StopNonPartialAnims();
+    ped->m_nDeathTime = CTimer::m_snTimeInMilliseconds;
+}
+
+// 0x62FC10
+void CTaskSimpleDie::FinishAnimDieCB(CAnimBlendAssociation* pAnim, void* data)
+{
+    auto pTask = reinterpret_cast<CTaskSimpleDie*>(data);
+    pTask->bIsFinished = true;
+    pTask->m_pAnim = nullptr;
 }
 
 CTask* CTaskSimpleDie::Clone_Reversed()

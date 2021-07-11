@@ -15,7 +15,7 @@ class CTaskSimpleDie : public CTaskSimple
         unsigned char m_nFlags;
         struct
         {
-            unsigned char b1 : 1;
+            unsigned char bIsFinished : 1;
             unsigned char b2 : 1;
         };
     };
@@ -36,6 +36,8 @@ public:
     eTaskType GetId() override { return TASK_SIMPLE_DIE; }
     CTask* Clone() override;
     bool MakeAbortable(CPed* ped, eAbortPriority priority, CEvent* _event) override;
+    void StartAnim(CPed* ped);
+    static void FinishAnimDieCB(CAnimBlendAssociation* pAnim, void* data);
 
     CTask* Clone_Reversed();
     bool MakeAbortable_Reversed(CPed* ped, eAbortPriority priority, CEvent* _event);
