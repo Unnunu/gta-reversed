@@ -1,5 +1,18 @@
 #include "StdInc.h"
 
+void CTaskSimpleDie::InjectHooks()
+{
+    ReversibleHooks::Install("CTaskSimpleDie", "Constructor", 0x62FA00, &CTaskSimpleDie::Constructor);
+    ReversibleHooks::Install("CTaskSimpleDie", "Constructor2", 0x62FA60, &CTaskSimpleDie::Constructor2);
+    ReversibleHooks::Install("CTaskSimpleDie", "Constructor3", 0x62FAF0, &CTaskSimpleDie::Constructor3);
+    ReversibleHooks::Install("CTaskSimpleDie", "StartAnim", 0x637520, &CTaskSimpleDie::StartAnim);
+    ReversibleHooks::Install("CTaskSimpleDie", "FinishAnimDieCB", 0x62FC10, &CTaskSimpleDie::FinishAnimDieCB);
+    //VTABLE
+    ReversibleHooks::Install("CTaskSimpleDie", "Clone", 0x635DA0, &CTaskSimpleDie::Clone_Reversed);
+    ReversibleHooks::Install("CTaskSimpleDie", "MakeAbortable", 0x62FBA0, &CTaskSimpleDie::MakeAbortable_Reversed);
+    ReversibleHooks::Install("CTaskSimpleDie", "ProcessPed", 0x6397E0, &CTaskSimpleDie::ProcessPed_Reversed);
+}
+
 // 0x62FA00
 CTaskSimpleDie::CTaskSimpleDie(eAnimGroup nAnimGroup, eAnimID nAnimID, float fBlendDelta, float fAnimSpeed)
 {
@@ -7,8 +20,8 @@ CTaskSimpleDie::CTaskSimpleDie(eAnimGroup nAnimGroup, eAnimID nAnimID, float fBl
     m_nAnimID = nAnimID;
     m_fBlendDelta = fBlendDelta;
     m_fAnimSpeed = fAnimSpeed;
-    bIsFinished = false;
-    b2 = false;
+    bAnimFinished = false;
+    bDeathEventGenerated = false;
     m_pAnimHierarchy = nullptr;
     m_nAnimFlags = 0;
     m_pAnim = nullptr;
@@ -21,8 +34,8 @@ CTaskSimpleDie::CTaskSimpleDie(const char* animName, const char* animBlockName, 
     m_nAnimID = ANIM_ID_KO_SHOT_FRONT_0;
     m_fBlendDelta = fBlendDelta;
     m_fAnimSpeed = fAnimSpeed;
-    bIsFinished = false;
-    b2 = false;
+    bAnimFinished = false;
+    bDeathEventGenerated = false;
     m_pAnimHierarchy = CAnimManager::GetAnimation(animName, CAnimManager::GetAnimationBlock(animBlockName));
     m_nAnimFlags = nAnimFlags;
     m_pAnim = nullptr;
@@ -35,8 +48,8 @@ CTaskSimpleDie::CTaskSimpleDie(CAnimBlendHierarchy* pAnimHierarchy, unsigned int
     m_nAnimID = ANIM_ID_KO_SHOT_FRONT_0;
     m_fBlendDelta = fBlendDelta;
     m_fAnimSpeed = fAnimSpeed;
-    bIsFinished = false;
-    b2 = false;
+    bAnimFinished = false;
+    bDeathEventGenerated = false;
     m_pAnimHierarchy = pAnimHierarchy;
     m_nAnimFlags = nAnimFlags;
     m_pAnim = nullptr;
@@ -79,6 +92,12 @@ bool CTaskSimpleDie::MakeAbortable(CPed* ped, eAbortPriority priority, CEvent* _
     return MakeAbortable_Reversed(ped, priority, _event);
 }
 
+// 0x6397E0
+bool CTaskSimpleDie::ProcessPed(CPed* ped)
+{
+    return ProcessPed_Reversed(ped);
+}
+
 // 0x637520
 void CTaskSimpleDie::StartAnim(CPed* ped)
 {
@@ -102,7 +121,7 @@ void CTaskSimpleDie::StartAnim(CPed* ped)
 void CTaskSimpleDie::FinishAnimDieCB(CAnimBlendAssociation* pAnim, void* data)
 {
     auto pTask = reinterpret_cast<CTaskSimpleDie*>(data);
-    pTask->bIsFinished = true;
+    pTask->bAnimFinished = true;
     pTask->m_pAnim = nullptr;
 }
 
@@ -134,4 +153,35 @@ bool CTaskSimpleDie::MakeAbortable_Reversed(CPed* ped, eAbortPriority priority, 
     }
     else
         return false;
+}
+
+bool CTaskSimpleDie::ProcessPed_Reversed(CPed* ped)
+{
+    ped->m_pedIK.bSlopePitch = true;
+
+    if (bAnimFinished || m_nAnimID == ANIM_ID_NO_ANIMATION_SET)
+    {
+        ped->bIsDyingStuck = true;
+        if (!bDeathEventGenerated)
+        {
+            if (ped->physicalFlags.bSubmergedInWater
+                || !ped->m_bUsesCollision
+                || ped->physicalFlags.bDontApplySpeed
+                || ped->bIsStanding && (ped->IsPlayer() || !ped->m_standingOnEntity || ped->m_standingOnEntity->AsPhysical()->physicalFlags.bDisableCollisionForce)
+                )
+            {
+                CEventDeath eventDeath(m_nAnimID == ANIM_ID_DROWN);
+                ped->GetIntelligence()->m_eventGroup.Add(&eventDeath, false);
+                bDeathEventGenerated = true;
+                ped->bIsDyingStuck = false;
+            }
+        }
+    }
+    else if (!m_pAnim)
+    {
+        StartAnim(ped);
+        ped->SetPedState(PEDSTATE_DIE);
+    }
+
+    return false;
 }
