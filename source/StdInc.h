@@ -584,6 +584,7 @@
 #include "game_sa\Tasks\TaskTypes\CTaskSimpleChoking.h"
 #include "game_sa\Tasks\TaskTypes\CTaskSimpleClimb.h"
 #include "game_sa\Tasks\TaskTypes\CTaskSimpleDie.h"
+#include "game_sa\Tasks\TaskTypes\CTaskSimpleDieInCar.h"
 #include "game_sa\Tasks\TaskTypes\CTaskSimpleDrown.h"
 #include "game_sa\Tasks\TaskTypes\CTaskSimpleDuck.h"
 #include "game_sa\Tasks\TaskTypes\CTaskSimpleFacial.h"
