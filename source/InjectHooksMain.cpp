@@ -334,6 +334,7 @@ void InjectHooksMain()
     CTaskSimpleDie::InjectHooks();
     CTaskSimpleDrown::InjectHooks();
     CTaskSimpleDieInCar::InjectHooks();
+    CTaskComplexDieInCar::InjectHooks();
 
     CAEVehicleAudioEntity::InjectHooks();
     CAESoundManager::InjectHooks();
