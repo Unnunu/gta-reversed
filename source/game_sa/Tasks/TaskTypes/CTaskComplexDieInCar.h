@@ -5,10 +5,10 @@ class CTaskComplexDieInCar : public CTaskComplex
 {
 public:
     eWeaponType m_nWeaponID;
-    int m_nTimeDrive;
-    int m_nEq2000;
-    bool a4;
-    bool a5;
+    int m_nTimeOfDeath;
+    int m_nDelay;
+    bool m_bIsDrivingAfterDeath;
+    bool m_bRefreshTimeOfDeath;
     unsigned char _pad[2];
 
     static void InjectHooks();

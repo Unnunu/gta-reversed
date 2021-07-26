@@ -1,13 +1,25 @@
 #include "StdInc.h"
 
+void CTaskComplexDieInCar::InjectHooks()
+{
+    ReversibleHooks::Install("CTaskComplexDieInCar", "Constructor", 0x62FC80, &CTaskComplexDieInCar::Constructor);
+    ReversibleHooks::Install("CTaskComplexDieInCar", "CreateSubTask", 0x62FD50, &CTaskComplexDieInCar::CreateSubTask);
+    ReversibleHooks::Install("CTaskComplexDieInCar", "PreparePedVehicleForPedDeath", 0x62FD00, &CTaskComplexDieInCar::PreparePedVehicleForPedDeath);
+    //VTABLE
+    ReversibleHooks::Install("CTaskComplexDieInCar", "CreateFirstSubTask", 0x6375F0, &CTaskComplexDieInCar::CreateFirstSubTask_Reversed);
+    ReversibleHooks::Install("CTaskComplexDieInCar", "CreateNextSubTask", 0x637850, &CTaskComplexDieInCar::CreateNextSubTask_Reversed);
+    ReversibleHooks::Install("CTaskComplexDieInCar", "ControlSubTask", 0x6377B0, &CTaskComplexDieInCar::ControlSubTask_Reversed);
+    ReversibleHooks::Install("CTaskComplexDieInCar", "MakeAbortable", 0x62FCC0, &CTaskComplexDieInCar::MakeAbortable_Reversed);
+}
+
 // 0x62FC80
 CTaskComplexDieInCar::CTaskComplexDieInCar(eWeaponType nWeaponID)
 {
     m_nWeaponID = nWeaponID;
-    m_nTimeDrive = 0;
-    m_nEq2000 = 0;
-    a4 = false;
-    a5 = false;
+    m_nTimeOfDeath = 0;
+    m_nDelay = 0;
+    m_bIsDrivingAfterDeath = false;
+    m_bRefreshTimeOfDeath = false;
 }
 
 CTaskComplexDieInCar* CTaskComplexDieInCar::Constructor(eWeaponType nWeaponID)
@@ -59,7 +71,7 @@ CTask* CTaskComplexDieInCar::CreateSubTask(eTaskType taskType, CPed* ped)
 // 0x62FD00
 void CTaskComplexDieInCar::PreparePedVehicleForPedDeath(CVehicle* pVehicle)
 {
-    if (pVehicle->m_nStatus = STATUS_SIMPLE)
+    if (pVehicle->m_nStatus == STATUS_SIMPLE)
         CCarCtrl::SwitchVehicleToRealPhysics(pVehicle);
 
     pVehicle->m_autoPilot.m_nCruiseSpeed = 0;
@@ -72,7 +84,7 @@ CTask* CTaskComplexDieInCar::CreateFirstSubTask_Reversed(CPed* ped)
 {
     ped->SetPedState(PEDSTATE_DIE);
 
-    auto pEvent = ped->GetIntelligence()->m_eventHandler.m_history.GetCurrentEvent();
+    auto pEvent = ped->GetEventHandlerHistory().GetCurrentEvent();
     if (pEvent && pEvent->GetEventType() == EVENT_DAMAGE)
     {
         auto pDriver = ped->m_pVehicle->m_pDriver;
@@ -110,9 +122,9 @@ CTask* CTaskComplexDieInCar::CreateFirstSubTask_Reversed(CPed* ped)
     if (ped->m_pVehicle->GetVehicleAppearance() == VEHICLE_APPEARANCE_AUTOMOBILE && ped->m_pVehicle->m_pDriver == ped)
     {
         PreparePedVehicleForPedDeath(ped->m_pVehicle);
-        m_nTimeDrive = CTimer::m_snTimeInMilliseconds;
-        m_nEq2000 = 2000;
-        a4 = true;
+        m_nTimeOfDeath = CTimer::m_snTimeInMilliseconds;
+        m_nDelay = 2000;
+        m_bIsDrivingAfterDeath = true;
         return CreateSubTask(TASK_SIMPLE_CAR_DRIVE, ped);
     }
 
@@ -135,17 +147,17 @@ CTask* CTaskComplexDieInCar::ControlSubTask_Reversed(CPed* ped)
 {
     auto subTaskType = m_pSubTask->GetId();
 
-    if (subTaskType == TASK_SIMPLE_CAR_DRIVE && a4)
+    if (subTaskType == TASK_SIMPLE_CAR_DRIVE && m_bIsDrivingAfterDeath)
     {
-        if (a5)
+        if (m_bRefreshTimeOfDeath)
         {
-            m_nTimeDrive = CTimer::m_snTimeInMilliseconds;
-            a5 = false;
+            m_nTimeOfDeath = CTimer::m_snTimeInMilliseconds;
+            m_bRefreshTimeOfDeath = false;
         }
 
-        if (CTimer::m_snTimeInMilliseconds >= m_nTimeDrive + m_nEq2000)
+        if (CTimer::m_snTimeInMilliseconds >= m_nTimeOfDeath + m_nDelay)
         {
-             
+
             return CreateSubTask(ped->IsCreatedBy(PED_MISSION) && ped->m_pVehicle->CanPedStepOutCar(false) ? TASK_COMPLEX_LEAVE_CAR_AND_DIE : TASK_SIMPLE_DIE_IN_CAR, ped);
         }
     }
